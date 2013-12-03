@@ -1,0 +1,8 @@
+html{margin:0;padding:0;}
+body{margin:0;padding-top:10px;}
+.chat-box{border:1px solid #808080;width:100%;height:450px;padding:10px;margin-bottom:10px;overflow:scroll;}
+.chat-actions div{padding:0;}
+#chat-input{border:1px solid #808080;width:100%;height:45px;}
+#send-chat{height:45px;padding-top:10px;}
+#chats{list-style:none;padding:0;margin:0;}
+#chats li{margin-bottom:3px;padding:3px;}
