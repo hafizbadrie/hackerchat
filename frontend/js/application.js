@@ -39,6 +39,8 @@ var SendChat = React.createClass({
 				if (response.is_command) {
 					if (response.command == '#screenshoot') {
 						$("#" + response.itemId).html('<em>system is currently capturing the web page</em>');
+					} else if (response.command = '#youtube') {
+						$("#" + response.itemId).html('<em>system is currently preparing the video</em>');
 					}
 				}
 
@@ -79,6 +81,12 @@ sockjs.onmessage = function(e) {
 	if (obj.type == 'screenshoot') {
 		if (obj.status == 'success') {
 			$("#" + obj.itemId).html('<img src="' + obj.filepath + '" width="700" />');
+		} else {
+			$("#" + obj.itemId).html('<em>' + obj.message + '</em>');
+		}
+	} else if (obj.type == 'youtube') {
+		if (obj.status == 'success') {
+			$("#" + obj.itemId).html('<iframe width="420" height="315" src="//www.youtube.com/embed/' + obj.video_id + '" frameborder="0" allowfullscreen></iframe>');
 		} else {
 			$("#" + obj.itemId).html('<em>' + obj.message + '</em>');
 		}

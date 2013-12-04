@@ -31,6 +31,12 @@ sock.on('connection', function(conn) {
 					pool[i].write(JSON.stringify(toclient_message));
 				}
 				break;
+			case 'youtube':
+				toclient_message = message;
+				for (var i=0; i<pool.length; i++) {
+					pool[i].write(JSON.stringify(toclient_message));
+				}
+				break;
 			case 'chat':
 				toclient_message = message;
 				for (var i=0; i<pool.length; i++) {
@@ -75,6 +81,7 @@ app.post('/sendchat', function(req, res, next) {
 			case '#youtube':
 				is_command 	= true;
 				command 	= '#youtube';
+				mq_con.publish('youtube-queue', {url: chats[1], itemId: req.body.itemId}, {type:'fanout'});
 				break;
 			case '#getimage':
 				is_command 	= true;
