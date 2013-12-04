@@ -1,4 +1,6 @@
 /** @jsx React.DOM */
+var sockjs = new SockJS('http://localhost:3000/sock');
+
 var ChatBox = React.createClass({
 	render: function() {
 		var chat_line = function(sent_chat) {
@@ -20,6 +22,7 @@ var SendChat = React.createClass({
 		var curdate = new Date(),
 			getTime = curdate.getTime(),
 			chat_items = this.state.items.concat([{itemText:this.state.text, itemId:getTime}]),
+			chat = this.state.text,
 			cleared_chat = '';
 		this.setState({items: chat_items, text: cleared_chat});
 
@@ -27,7 +30,7 @@ var SendChat = React.createClass({
 			type:"POST",
 			url:"http://localhost:3000/sendchat",
 			data:{
-				chat:this.state.text,
+				chat:chat,
 				itemId:getTime
 			},
 			dataType:"json",
@@ -38,6 +41,13 @@ var SendChat = React.createClass({
 						$("#" + response.itemId).html('<em>system is currently capturing the web page</em>');
 					}
 				}
+
+				var payload = {
+					type:'chat',
+					server_res: response,
+					chat:chat
+				};
+				sockjs.send(JSON.stringify(payload));
 			}
 		});
 	},
@@ -64,16 +74,21 @@ var SendChat = React.createClass({
 
 React.renderComponent(<SendChat />, document.getElementById('chat-panel'));
 
-
-var sockjs = new SockJS('http://localhost:3000/sock');
 sockjs.onmessage = function(e) {
-	console.log(e);
 	var obj = JSON.parse(e.data);
 	if (obj.type == 'screenshoot') {
 		if (obj.status == 'success') {
 			$("#" + obj.itemId).html('<img src="' + obj.filepath + '" width="700" />');
 		} else {
 			$("#" + obj.itemId).html('<em>' + obj.message + '</em>');
+		}
+	} else if (obj.type == 'chat') {
+		if (obj.server_res.is_command) {
+			if (obj.server_res.command == '#screenshoot') {
+				$("#chats").append('<li>' + obj.chat + ' <div id="' + obj.server_res.itemId + '"><em>system is currently capturing the web page</em></div></li>');
+			}
+		} else {
+			$("#chats").append('<li>' + obj.chat + '</li>');
 		}
 	}
 }

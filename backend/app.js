@@ -23,15 +23,22 @@ sock.on('connection', function(conn) {
 		/* parse message to know what kind of message the server get */
 		var toclient_message = {};
 		message = JSON.parse(message);
-		console.log(message);
+
 		switch(message.type) {
 			case 'screenshoot':
 				toclient_message = message;
+				for (var i=0; i<pool.length; i++) {
+					pool[i].write(JSON.stringify(toclient_message));
+				}
 				break;
-		}
-
-		for (var i=0; i<pool.length; i++) {
-			pool[i].write(JSON.stringify(toclient_message));
+			case 'chat':
+				toclient_message = message;
+				for (var i=0; i<pool.length; i++) {
+					if (pool[i] !== conn) {
+						pool[i].write(JSON.stringify(toclient_message));
+					}
+				}
+				break;
 		}
 	});
 })
