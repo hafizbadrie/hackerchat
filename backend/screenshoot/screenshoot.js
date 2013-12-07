@@ -42,7 +42,7 @@ mq_con.on('ready', function() {
 								itemId: message.itemId
 							};
 
-							sleep.sleep(5);
+							sleep.sleep(7);
 						}
 
 						sjs_client.send(JSON.stringify(sock_message));

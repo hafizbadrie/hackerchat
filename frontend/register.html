@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv='Content-type' content='text/html; charset=utf-8'>
+	<title>hackerchat | it's a chat platform, but more hacker</title>
+	<link rel="stylesheet" href="css/bootstrap.min.css" />
+	<link rel="stylesheet" href="css/bootstrap-theme.min.css" />
+	<link rel="stylesheet" href="css/application.css" />
+</head>
+<body>
+	<div class="container">
+		<div class="row">
+			<div class="col-md-12">
+				<form method="post" class="form-horizontal" role="form" action="http://localhost:3000/register">
+					<h3>Register</h3>
+					<br/>
+					<div class="form-group">
+						<label for="email-address" class="col-sm-2">Email Address</label>
+						<div class="col-sm-3">
+							<input type="email" class="form-control" id="email-address" name="email" placeholder="Enter email ..."/>
+						</div>
+					</div>
+					<div class="form-group">
+						<label for="username" class="col-sm-2">Username</label>
+						<div class="col-sm-3">
+							<input type="text" class="form-control" id="username" name="username" placeholder="Enter username ..."/>
+						</div>
+					</div>
+					<div class="form-group">
+						<label for="password" class="col-sm-2">Password</label>
+						<div class="col-sm-3">
+							<input type="password" class="form-control" id="password" name="password" placeholder="Enter password ..."/>
+						</div>
+					</div>
+					<div class="form-group">
+						<label for="confirm-password" class="col-sm-2">Confirm Password</label>
+						<div class="col-sm-3">
+							<input type="password" class="form-control" id="confirm-password" placeholder="Confirm your password ..."/>
+						</div>
+					</div>
+					<button type="submit" class="btn btn-primary">Register</button>
+				</form>
+			</div>
+		</div>
+	</div>
+
+	<script type="text/javascript" src="js/jquery.min.js"></script>
+	<script src="js/react.js"></script>
+	<script src="js/JSXTransformer.js"></script>
+</body>
+</html>

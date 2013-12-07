@@ -1,20 +1,30 @@
-var express = require('express'),
-	amqp 	= require('amqp'),
-	http	= require('http'),
-	path	= require('path'),
-	mq_con	= amqp.createConnection(),
-	sockjs	= require('sockjs'),
-	app		= express(),
-	sock 	= sockjs.createServer(),
-	pool 	= [],
+var express 	= require('express'),
+	amqp 		= require('amqp'),
+	http		= require('http'),
+	path		= require('path'),
+	mq_con		= amqp.createConnection(),
+	sockjs		= require('sockjs'),
+	node_redis	= require('redis'),
+	crypto		= require('crypto'),
+	app			= express(),
+	sock 		= sockjs.createServer(),
+	pool 		= [],
+	redis 		= node_redis.createClient(),
+	auth		= require('./authentication'),
 	server;
 
 app.use(express.bodyParser());
+app.use(express.cookieParser());
+app.use(express.session({secret: "Xjsk8727dWsks097kdmceiUDU94820SJdjckwowluqpd"}));
 app.use(app.router);
 
 String.prototype.trim = function() {
     return this.replace(/^\s+|\s+$/g, "");
 };
+
+redis.on('error', function(err) {
+	console.log("Redis Error: " + err);
+});
 
 sock.on('connection', function(conn) {
 	pool.push(conn);
@@ -55,6 +65,29 @@ app.all('*', function(req, res, next) {
 	next();
 });
 
+/* User Login & Registration : START */
+app.get('/validate_username', function(req, res, next) {
+	var username = req.query.username.trim();
+
+	auth.validateUsername(redis, username, res);
+});
+
+app.post('/register', function(req, res, next) {
+	var username = req.body.username.trim(),
+		password = crypto.createHash('md5').update(req.body.password).digest('hex');
+
+	auth.register(redis, username, password, res);
+});
+
+app.post('/login', function(req, res, next) {
+	var username = req.body.username.trim(),
+		password = crypto.createHash('md5').update(req.body.password).digest('hex');
+
+	auth.login(redis, username, password, res);
+});
+/* User Login & Registration : END */
+
+/* Chat Processing : START */
 app.post('/sendchat', function(req, res, next) {
 	if (req.body.chat == null) {
 		res.json({status:'failed', message:'You need to enter a chat!'});
@@ -96,6 +129,7 @@ app.post('/sendchat', function(req, res, next) {
 		res.json({status:'success', is_command:is_command, command:command, itemId:req.body.itemId});
 	}
 });
+/* Chat Processing : END */
 
 server = http.createServer(app);
 sock.installHandlers(server, {prefix:'/sock'});
