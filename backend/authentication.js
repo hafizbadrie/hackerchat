@@ -3,7 +3,7 @@
 module.exports = {
 	validateUsername: function(redis, username, res) {
 		redis.get('user:' + username, function(err, value) {
-			if (value) {
+			if (value != null) {
 				res.json({status:"fail", message:"Username is already taken."});
 			} else {
 				res.json({status:"success"});

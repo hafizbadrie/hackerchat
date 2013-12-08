@@ -1,6 +1,214 @@
 /** @jsx React.DOM */
 var sockjs = new SockJS('http://localhost:3000/sock');
 
+var RegisterBox = React.createClass({
+	getInitialState: function() {
+		return {username:'', password:'', confirmPassword:''}
+	},
+	onUsernameChange: function(e) {
+		var react_obj = this,
+			$reg_btn  = document.getElementById('register-btn');
+		this.setState({username: e.target.value});
+
+		if (this.state.username.length > 5) {
+			$.ajax({
+				type:"GET",
+				url:"http://localhost:3000/validate_username?username=" + e.target.value,
+				dataType:"json",
+				success:function(response) {
+					if (response.status == 'fail') {
+						console.log('Username is already taken!');
+						$reg_btn.disabled = true;
+					} else {
+						console.log('Username is okay!');
+						$reg_btn.disabled = false;
+					}
+				}
+			});
+		}
+	},
+	onPasswordChange: function(e) {
+		if (e.target.value != this.state.confirmPassword) { 
+			this.setState({confirmPassword: ''});
+		}
+
+		if (e.target.value.length < 6) {
+			console.log('Password must be 6 characters of length');
+			this.setState({confirmPassword: ''});
+		} else {
+			console.log('Password is okay!');
+			this.setState({password: e.target.value});
+		}
+	},
+	onConfirmPasswordChange: function(e) {
+		var $reg_btn = document.getElementById('register-btn');
+
+		this.setState({confirmPassword: e.target.value});
+		if (e.target.value != this.state.password && e.target.value != '') {
+			console.log('Confirm password is not equal with Password');
+			$reg_btn.disabled = true;
+		} else {
+			console.log('Confirm password is okay!');
+			$reg_btn.disabled = false;
+		}
+	},
+	onSubmit: function(e) {
+		e.preventDefault();
+		var react_obj = this,
+			$username = document.getElementById('username'),
+			$password = document.getElementById('password'),
+			$confirm_password = document.getElementById('confirm-password'),
+			$reg_btn = document.getElementById('register-btn');
+
+		if ($username.value == '' || $password.value == '' || $confirm_password == '' || $password.value != $confirm_password.value) {
+			console.log('Validation fail! Nothing to do!');
+		} else {
+			$.ajax({
+				type:"POST",
+				url:"http://localhost:3000/register",
+				data:{
+					username:this.state.username,
+					password:this.state.password
+				},
+				dataType:"json",
+				success:function(response) {
+					if (response.status == 'success') {
+						React.renderComponent(<LoginBox registerMessage={response.message} />, document.getElementById('main-panel'));
+					} else {
+						console.log('Registration fail!');
+					}
+				}
+			});
+		}
+	},
+	showLogin: function(e) {
+		React.renderComponent(<LoginBox />, document.getElementById('main-panel'));
+	},
+	render: function() {
+		return(
+			<div>
+				<div className="row">
+					<div className="col-md-12">
+						<form method="post" className="form-horizontal" role="form" action="http://localhost:3000/register">
+							<h3>Register</h3>
+							<br/>
+							<div className="form-group">
+							{this.state.registerMessage}
+							</div>
+							<div className="form-group">
+								<label for="username" className="col-sm-2">Username</label>
+								<div className="col-sm-3">
+									<input onChange={this.onUsernameChange} type="text" className="form-control" id="username" name="username" placeholder="Enter username ..."/>
+								</div>
+							</div>
+							<div className="form-group">
+								<label for="password" className="col-sm-2">Password</label>
+								<div className="col-sm-3">
+									<input onChange={this.onPasswordChange} type="password" className="form-control" id="password" name="password" placeholder="Enter password ..."/>
+								</div>
+							</div>
+							<div className="form-group">
+								<label for="confirm-password" className="col-sm-2">Confirm Password</label>
+								<div className="col-sm-3">
+									<input onChange={this.onConfirmPasswordChange} value={this.state.confirmPassword} type="password" className="form-control" id="confirm-password" placeholder="Confirm your password ..."/>
+								</div>
+							</div>
+							<button type="submit" className="btn btn-primary" id="register-btn" onClick={this.onSubmit}>Register</button>
+							or <a href='#' onClick={this.showLogin}>Login</a>
+						</form>
+					</div>
+				</div>
+			</div>
+		);
+	}
+});
+
+var LoginBox = React.createClass({
+	getInitialState: function() {
+		return {username:'', password:'', registerMessage:''}
+	},
+	onUsernameChange: function(e) {
+		this.setState({username: e.target.value});
+	},
+	onPasswordChange: function(e) {
+		if (e.target.value.length < 6) {
+			console.log('Password must be 6 characters of length');
+		} else {
+			console.log('Password is okay!');
+			this.setState({password: e.target.value});
+		}
+	},
+	onSubmit: function(e) {
+		e.preventDefault();
+		var react_obj = this,
+			$username = document.getElementById('username'),
+			$password = document.getElementById('password'),
+			$login 	  = document.getElementById('login-btn');
+		
+		$username.disabled = true;
+		$password.disabled = true;
+		$login.disabled = true;
+		$.ajax({
+			type:"POST",
+			url:"http://localhost:3000/login",
+			data:{
+				username:this.state.username,
+				password:this.state.password
+			},
+			dataType:"json",
+			success:function(response) {
+				if (response.status == "success") {
+					console.log('Logged in');
+					react_obj.state.username = '';
+					react_obj.state.password = '';
+					$username.value = '';
+					$password.value = '';
+
+					alert('Logged in');
+				} else {
+					console.log('Not logged in');
+				}
+
+				
+				$username.disabled = false;
+				$password.disabled = false;
+				$login.disabled = false;
+			}
+		});
+	},
+	showRegister:function(e) {
+		React.renderComponent(<RegisterBox />, document.getElementById('main-panel'));
+	},
+	render: function() {
+		return (
+			<div>
+				<div className="row">
+					<div className="col-md-12">
+						<form method="post" className="form-horizontal" role="form" action="http://localhost:3000/login">
+							<h3>Login</h3>
+							<br/>
+							<div className="form-group">
+								<label for="username" className="col-sm-2">Username</label>
+								<div className="col-sm-3">
+									<input onChange={this.onUsernameChange} type="text" className="form-control" id="username" name="username" placeholder="Enter username ..."/>
+								</div>
+							</div>
+							<div className="form-group">
+								<label for="password" className="col-sm-2">Password</label>
+								<div className="col-sm-3">
+									<input onChange={this.onPasswordChange} type="password" className="form-control" id="password" name="password" placeholder="Enter password ..."/>
+								</div>
+							</div>
+							<button type="submit" className="btn btn-primary" onClick={this.onSubmit} id="login-btn">Login</button>
+							or <a href='#' onClick={this.showRegister}>Register</a>
+						</form>
+					</div>
+				</div>
+			</div>
+		);
+	}
+});
+
 var ChatBox = React.createClass({
 	render: function() {
 		var chat_line = function(sent_chat) {
@@ -74,7 +282,8 @@ var SendChat = React.createClass({
 	}
 });
 
-React.renderComponent(<SendChat />, document.getElementById('chat-panel'));
+//React.renderComponent(<SendChat />, document.getElementById('chat-panel'));
+React.renderComponent(<LoginBox />, document.getElementById('main-panel'));
 
 sockjs.onmessage = function(e) {
 	var obj = JSON.parse(e.data);

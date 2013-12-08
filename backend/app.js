@@ -76,6 +76,8 @@ app.post('/register', function(req, res, next) {
 	var username = req.body.username.trim(),
 		password = crypto.createHash('md5').update(req.body.password).digest('hex');
 
+	console.log(username);
+	console.log(password);
 	auth.register(redis, username, password, res);
 });
 
