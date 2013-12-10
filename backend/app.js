@@ -15,7 +15,7 @@ var express 	= require('express'),
 
 app.use(express.bodyParser());
 app.use(express.cookieParser());
-app.use(express.session({secret: "Xjsk8727dWsks097kdmceiUDU94820SJdjckwowluqpd"}));
+app.use(express.session({secret: "Xjs27dWsks097kU94820SJluqpd", key: 'hackerchat.sid'}));
 app.use(app.router);
 
 String.prototype.trim = function() {
@@ -66,6 +66,12 @@ app.all('*', function(req, res, next) {
 });
 
 /* User Login & Registration : START */
+app.get('/session_check', function(req, res, next) {
+	var auth_key = req.query.auth_key.trim();
+
+	auth.sessionCheck(redis, auth_key, res);
+});
+
 app.get('/validate_username', function(req, res, next) {
 	var username = req.query.username.trim();
 
@@ -76,8 +82,6 @@ app.post('/register', function(req, res, next) {
 	var username = req.body.username.trim(),
 		password = crypto.createHash('md5').update(req.body.password).digest('hex');
 
-	console.log(username);
-	console.log(password);
 	auth.register(redis, username, password, res);
 });
 
@@ -85,7 +89,11 @@ app.post('/login', function(req, res, next) {
 	var username = req.body.username.trim(),
 		password = crypto.createHash('md5').update(req.body.password).digest('hex');
 
-	auth.login(redis, username, password, res);
+	auth.login(redis, username, password, req, res);
+});
+
+app.post('/logout', function(req, res, next) {
+
 });
 /* User Login & Registration : END */
 

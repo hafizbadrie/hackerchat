@@ -1,13 +1,58 @@
 /** @jsx React.DOM */
-var sockjs = new SockJS('http://localhost:3000/sock');
+function getCookie(c_name) {
+	var c_value = document.cookie;
+	var c_start = c_value.indexOf(" " + c_name + "=");
+	if (c_start == -1) {
+		c_start = c_value.indexOf(c_name + "=");
+	}
+
+	if (c_start == -1) {
+		c_value = null;
+	} else {
+		c_start = c_value.indexOf("=", c_start) + 1;
+		var c_end = c_value.indexOf(";", c_start);
+		if (c_end == -1) {
+			c_end = c_value.length;
+		}
+
+		c_value = unescape(c_value.substring(c_start,c_end));
+	}
+
+	return c_value;
+}
+
+function setCookie(c_name, value, exdays) {
+	var exdate = new Date();
+	exdate.setDate(exdate.getDate() + exdays);
+	var c_value = escape(value) + ((exdays==null) ? "" : "; expires="+exdate.toUTCString());
+	document.cookie = c_name + "=" + c_value;
+}
+
+var sockjs = new SockJS('http://localhost:3000/sock'),
+	$main_panel = document.getElementById('main-panel'),
+	app_auth_key;
 
 var RegisterBox = React.createClass({
 	getInitialState: function() {
-		return {username:'', password:'', confirmPassword:''}
+		return {
+			username:'', 
+			password:'', 
+			confirmPassword:'',
+			usernameErr:false,
+			usernameClass:'form-group',
+			passwordClass:'form-group',
+			confirmPasswordClass:'form-group'
+		}
+	},
+	isValidState: function() {
+		if (this.state.username != '' && this.state.password != '' && this.state.confirmPassword != '' && this.state.password == this.state.confirmPassword) {
+			return true;
+		} else {
+			return false;
+		}
 	},
 	onUsernameChange: function(e) {
-		var react_obj = this,
-			$reg_btn  = document.getElementById('register-btn');
+		var react_obj = this;
 		this.setState({username: e.target.value});
 
 		if (this.state.username.length > 5) {
@@ -17,11 +62,9 @@ var RegisterBox = React.createClass({
 				dataType:"json",
 				success:function(response) {
 					if (response.status == 'fail') {
-						console.log('Username is already taken!');
-						$reg_btn.disabled = true;
+						react_obj.setState({usernameErr:true, usernameClass:'form-group has-error'});
 					} else {
-						console.log('Username is okay!');
-						$reg_btn.disabled = false;
+						react_obj.setState({usernameErr:false, usernameClass:'form-group has-success'});
 					}
 				}
 			});
@@ -29,27 +72,21 @@ var RegisterBox = React.createClass({
 	},
 	onPasswordChange: function(e) {
 		if (e.target.value != this.state.confirmPassword) { 
-			this.setState({confirmPassword: ''});
+			this.setState({confirmPasswordClass:'form-group has-error'});
 		}
 
 		if (e.target.value.length < 6) {
-			console.log('Password must be 6 characters of length');
-			this.setState({confirmPassword: ''});
-		} else {
-			console.log('Password is okay!');
-			this.setState({password: e.target.value});
+			this.setState({confirmPassword:'', passwordClass:'form-group has-error'});
+		} else {			
+			this.setState({password: e.target.value, passwordClass:'form-group has-success'});
 		}
 	},
 	onConfirmPasswordChange: function(e) {
-		var $reg_btn = document.getElementById('register-btn');
-
 		this.setState({confirmPassword: e.target.value});
 		if (e.target.value != this.state.password && e.target.value != '') {
-			console.log('Confirm password is not equal with Password');
-			$reg_btn.disabled = true;
+			this.setState({confirmPasswordClass:'form-group has-error'});
 		} else {
-			console.log('Confirm password is okay!');
-			$reg_btn.disabled = false;
+			this.setState({confirmPasswordClass:'form-group has-success'});
 		}
 	},
 	onSubmit: function(e) {
@@ -60,9 +97,7 @@ var RegisterBox = React.createClass({
 			$confirm_password = document.getElementById('confirm-password'),
 			$reg_btn = document.getElementById('register-btn');
 
-		if ($username.value == '' || $password.value == '' || $confirm_password == '' || $password.value != $confirm_password.value) {
-			console.log('Validation fail! Nothing to do!');
-		} else {
+		if (!this.state.usernameErr && this.state.username != '' && this.state.password != '' && this.state.confirmPassword != '' && this.state.password == this.state.confirmPassword) {
 			$.ajax({
 				type:"POST",
 				url:"http://localhost:3000/register",
@@ -73,16 +108,20 @@ var RegisterBox = React.createClass({
 				dataType:"json",
 				success:function(response) {
 					if (response.status == 'success') {
-						React.renderComponent(<LoginBox registerMessage={response.message} />, document.getElementById('main-panel'));
+						React.unmountComponentAtNode($main_panel);
+						React.renderComponent(<LoginBox registerMessage={response.message} />, $main_panel);
 					} else {
 						console.log('Registration fail!');
 					}
 				}
 			});
+		} else {
+			console.log('Validation fail! Nothing to do!');
 		}
 	},
 	showLogin: function(e) {
-		React.renderComponent(<LoginBox />, document.getElementById('main-panel'));
+		React.unmountComponentAtNode($main_panel);
+		React.renderComponent(<LoginBox />, $main_panel);
 	},
 	render: function() {
 		return(
@@ -92,22 +131,19 @@ var RegisterBox = React.createClass({
 						<form method="post" className="form-horizontal" role="form" action="http://localhost:3000/register">
 							<h3>Register</h3>
 							<br/>
-							<div className="form-group">
-							{this.state.registerMessage}
-							</div>
-							<div className="form-group">
+							<div className={this.state.usernameClass}>
 								<label for="username" className="col-sm-2">Username</label>
 								<div className="col-sm-3">
 									<input onChange={this.onUsernameChange} type="text" className="form-control" id="username" name="username" placeholder="Enter username ..."/>
 								</div>
 							</div>
-							<div className="form-group">
+							<div className={this.state.passwordClass}>
 								<label for="password" className="col-sm-2">Password</label>
 								<div className="col-sm-3">
 									<input onChange={this.onPasswordChange} type="password" className="form-control" id="password" name="password" placeholder="Enter password ..."/>
 								</div>
 							</div>
-							<div className="form-group">
+							<div className={this.state.confirmPasswordClass}>
 								<label for="confirm-password" className="col-sm-2">Confirm Password</label>
 								<div className="col-sm-3">
 									<input onChange={this.onConfirmPasswordChange} value={this.state.confirmPassword} type="password" className="form-control" id="confirm-password" placeholder="Confirm your password ..."/>
@@ -125,7 +161,7 @@ var RegisterBox = React.createClass({
 
 var LoginBox = React.createClass({
 	getInitialState: function() {
-		return {username:'', password:'', registerMessage:''}
+		return {username:'', password:''}
 	},
 	onUsernameChange: function(e) {
 		this.setState({username: e.target.value});
@@ -158,17 +194,17 @@ var LoginBox = React.createClass({
 			dataType:"json",
 			success:function(response) {
 				if (response.status == "success") {
-					console.log('Logged in');
 					react_obj.state.username = '';
 					react_obj.state.password = '';
 					$username.value = '';
 					$password.value = '';
 
-					alert('Logged in');
+					setCookie('auth_key', response.auth_key);
+					React.unmountComponentAtNode($main_panel);
+					React.renderComponent(<ChatPanel />, $main_panel);
 				} else {
 					console.log('Not logged in');
 				}
-
 				
 				$username.disabled = false;
 				$password.disabled = false;
@@ -177,7 +213,8 @@ var LoginBox = React.createClass({
 		});
 	},
 	showRegister:function(e) {
-		React.renderComponent(<RegisterBox />, document.getElementById('main-panel'));
+		React.unmountComponentAtNode($main_panel);
+		React.renderComponent(<RegisterBox />, $main_panel);
 	},
 	render: function() {
 		return (
@@ -187,6 +224,9 @@ var LoginBox = React.createClass({
 						<form method="post" className="form-horizontal" role="form" action="http://localhost:3000/login">
 							<h3>Login</h3>
 							<br/>
+							<div className="form-group">
+								{this.props.registerMessage}
+							</div>
 							<div className="form-group">
 								<label for="username" className="col-sm-2">Username</label>
 								<div className="col-sm-3">
@@ -218,7 +258,7 @@ var ChatBox = React.createClass({
 	}
 });
 
-var SendChat = React.createClass({
+var ChatPanel = React.createClass({
 	getInitialState: function() {
 		return {items:[], text:''};
 	},
@@ -263,18 +303,38 @@ var SendChat = React.createClass({
 	},
 	render: function() {
 		return (
-			<div>
-				<div className="row">
-					<div className="col-md-12 chat-box">
-						<ChatBox items={this.state.items} />
-					</div>
+			<div className="row">
+				<div className="col-md-3 command-chat">
+					<h2>Command Chat</h2>
+					<ul>
+						<li><strong>#screenshoot</strong>: use this command chat to capture a web page</li>
+						<li><strong>#youtube</strong>: use this command chat to share a youtube video</li>
+						<li><strong>#getimage</strong>: use this command chat to share an image</li>
+						<li><strong>#alexa</strong>: use this command chat to retrieve alexa data of a site</li>
+					</ul>
+
+					<h2>Todo</h2>
+					<ul>
+						<li>Persist chat in redis</li>
+						<li>Scrolling interaction</li>
+						<li>Getimage module</li>
+						<li>Skin polish</li>
+						<li>Learn reactjs more to remove unnecessary jQuery code</li>
+					</ul>
 				</div>
-				<div className="row chat-actions">
-					<div className="col-md-11">
-						<textarea onChange={this.onChange} id="chat-input" value={this.state.text}></textarea>
+				<div className="col-md-9" id="chat-panel">
+					<div className="row">
+						<div className="col-md-12 chat-box">
+							<ChatBox items={this.state.items} />
+						</div>
 					</div>
-					<div className="col-md-1">
-						<a href="#" id="send-chat" className='btn btn-primary' onClick={this.onClick}>Send</a>
+					<div className="row chat-actions">
+						<div className="col-md-11">
+							<textarea onChange={this.onChange} id="chat-input" value={this.state.text}></textarea>
+						</div>
+						<div className="col-md-1">
+							<a href="#" id="send-chat" className='btn btn-primary' onClick={this.onClick}>Send</a>
+						</div>
 					</div>
 				</div>
 			</div>
@@ -282,22 +342,39 @@ var SendChat = React.createClass({
 	}
 });
 
-//React.renderComponent(<SendChat />, document.getElementById('chat-panel'));
-React.renderComponent(<LoginBox />, document.getElementById('main-panel'));
+/* check session */
+app_auth_key = getCookie('auth_key');
+if (app_auth_key == '' || app_auth_key == undefined) {
+	React.renderComponent(<LoginBox />, $main_panel);
+} else {
+	$.ajax({
+		type:"GET",
+		url:"http://localhost:3000/session_check?auth_key=" + app_auth_key,
+		dataType:"json",
+		success:function(response) {
+			if (response.status == 'success') {
+				React.renderComponent(<ChatPanel />, $main_panel);
+			} else {
+				React.renderComponent(<LoginBox />, $main_panel);
+			}
+		}
+	})
+}
 
 sockjs.onmessage = function(e) {
-	var obj = JSON.parse(e.data);
+	var obj  = JSON.parse(e.data)
+		node = $("#" + obj.itemId);
 	if (obj.type == 'screenshoot') {
 		if (obj.status == 'success') {
-			$("#" + obj.itemId).html('<img src="' + obj.filepath + '" width="700" />');
+			node.html('<img src="' + obj.filepath + '" width="700" />');
 		} else {
-			$("#" + obj.itemId).html('<em>' + obj.message + '</em>');
+			node.html('<em>' + obj.message + '</em>');
 		}
 	} else if (obj.type == 'youtube') {
 		if (obj.status == 'success') {
-			$("#" + obj.itemId).html('<iframe width="420" height="315" src="//www.youtube.com/embed/' + obj.video_id + '" frameborder="0" allowfullscreen></iframe>');
+			node.html('<iframe width="420" height="315" src="//www.youtube.com/embed/' + obj.video_id + '" frameborder="0" allowfullscreen></iframe>');
 		} else {
-			$("#" + obj.itemId).html('<em>' + obj.message + '</em>');
+			node.html('<em>' + obj.message + '</em>');
 		}
 	} else if (obj.type == 'chat') {
 		if (obj.server_res.is_command) {
