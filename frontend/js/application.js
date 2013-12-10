@@ -41,7 +41,9 @@ var RegisterBox = React.createClass({
 			usernameErr:false,
 			usernameClass:'form-group',
 			passwordClass:'form-group',
-			confirmPasswordClass:'form-group'
+			confirmPasswordClass:'form-group',
+			invalidAlert:'alert alert-danger hidden'
+
 		}
 	},
 	isValidState: function() {
@@ -109,14 +111,14 @@ var RegisterBox = React.createClass({
 				success:function(response) {
 					if (response.status == 'success') {
 						React.unmountComponentAtNode($main_panel);
-						React.renderComponent(<LoginBox registerMessage={response.message} />, $main_panel);
+						React.renderComponent(<LoginBox registerMessage={response.message} showMessage='alert alert-success' />, $main_panel);
 					} else {
 						console.log('Registration fail!');
 					}
 				}
 			});
 		} else {
-			console.log('Validation fail! Nothing to do!');
+			this.setState({invalidAlert:'alert alert-danger'});
 		}
 	},
 	showLogin: function(e) {
@@ -131,6 +133,7 @@ var RegisterBox = React.createClass({
 						<form method="post" className="form-horizontal" role="form" action="http://localhost:3000/register">
 							<h3>Register</h3>
 							<br/>
+							<div className={this.state.invalidAlert}>Invalid data, please fill in valid data</div>
 							<div className={this.state.usernameClass}>
 								<label for="username" className="col-sm-2">Username</label>
 								<div className="col-sm-3">
@@ -162,6 +165,9 @@ var RegisterBox = React.createClass({
 var LoginBox = React.createClass({
 	getInitialState: function() {
 		return {username:'', password:''}
+	},
+	getDefaultState: function() {
+		return {showMessage:'alert alert-success hidden', registerMessage:''}
 	},
 	onUsernameChange: function(e) {
 		this.setState({username: e.target.value});
@@ -224,9 +230,7 @@ var LoginBox = React.createClass({
 						<form method="post" className="form-horizontal" role="form" action="http://localhost:3000/login">
 							<h3>Login</h3>
 							<br/>
-							<div className="form-group">
-								{this.props.registerMessage}
-							</div>
+							<div className={this.props.showMessage}>{this.props.registerMessage}</div>
 							<div className="form-group">
 								<label for="username" className="col-sm-2">Username</label>
 								<div className="col-sm-3">
