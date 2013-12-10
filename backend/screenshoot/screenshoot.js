@@ -13,9 +13,9 @@ sjs_client.on('connection', function() {
 
 mq_con.on('ready', function() {
 	mq_con.queue('screenshoot-queue', function(q) {
-		q.bind('#');
+		q.bind('screenshoot-queue');
 
-		q.subscribe(function(message) {
+		q.subscribe({ack:false}, function(message) {
 			phantomjs.create(function(phantom) {
 				phantom.createPage(function(page) {
 					page.open(message.url, function(status) {

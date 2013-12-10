@@ -5,7 +5,7 @@ module.exports = {
 	sessionCheck: function(redis, auth_key, res) {
 		redis.get('session:' + auth_key, function(err, value) {
 			if (value) {
-				res.json({status:"success"});
+				res.json({status:"success", username:value});
 			} else {
 				res.json({status:"fail"});
 			}
@@ -31,9 +31,9 @@ module.exports = {
 			if (value && value == password) {
 				var auth_key = new Date();
 				auth_key = crypto.createHash('md5').update(auth_key.toString()).digest('hex');
-				redis.set('session:' + auth_key, 1);
+				redis.set('session:' + auth_key, username);
 
-				res.json({status:"success", auth_key:auth_key});
+				res.json({status:"success", username:username, auth_key:auth_key});
 			} else {
 				res.json({status:"fail", message:"Incorrect username or password"});
 			}

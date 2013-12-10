@@ -115,16 +115,17 @@ app.post('/sendchat', function(req, res, next) {
 		var command 	= chats[0],
 			is_command 	= false;
 
+		console.log(chats);
 		switch(command) {
 			case '#screenshoot':
 				is_command 	= true;
 				command 	= '#screenshoot';
-				mq_con.publish('screenshoot-queue', {url: chats[1], itemId: req.body.itemId}, {type:'fanout'});			
+				mq_con.publish('screenshoot-queue', {url: chats[1], itemId: req.body.itemId});			
 				break;
 			case '#youtube':
 				is_command 	= true;
 				command 	= '#youtube';
-				mq_con.publish('youtube-queue', {url: chats[1], itemId: req.body.itemId}, {type:'fanout'});
+				mq_con.publish('youtube-queue', {url: chats[1], itemId: req.body.itemId});
 				break;
 			case '#getimage':
 				is_command 	= true;

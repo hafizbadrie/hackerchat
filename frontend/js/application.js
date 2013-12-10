@@ -166,7 +166,7 @@ var LoginBox = React.createClass({
 	getInitialState: function() {
 		return {username:'', password:''}
 	},
-	getDefaultState: function() {
+	getDefaultProps: function() {
 		return {showMessage:'alert alert-success hidden', registerMessage:''}
 	},
 	onUsernameChange: function(e) {
@@ -207,7 +207,7 @@ var LoginBox = React.createClass({
 
 					setCookie('auth_key', response.auth_key);
 					React.unmountComponentAtNode($main_panel);
-					React.renderComponent(<ChatPanel />, $main_panel);
+					React.renderComponent(<ChatPanel username={response.username} authKey={response.auth_key} />, $main_panel);
 				} else {
 					console.log('Not logged in');
 				}
@@ -256,7 +256,7 @@ var LoginBox = React.createClass({
 var ChatBox = React.createClass({
 	render: function() {
 		var chat_line = function(sent_chat) {
-			return <li>{sent_chat.itemText} <div id={sent_chat.itemId}></div></li>;
+			return <li>{sent_chat.itemText} <div id={sent_chat.itemId}>{sent_chat.commandResult}</div></li>;
 		}
 		return <ul id="chats">{this.props.items.map(chat_line)}</ul>;
 	}
@@ -266,6 +266,13 @@ var ChatPanel = React.createClass({
 	getInitialState: function() {
 		return {items:[], text:''};
 	},
+	getDefaultProps: function() {
+		return {username:'', authKey:''};
+	},
+	handleLogout: function(e) {
+		e.preventDefault();
+		
+	},
 	onChange: function(e) {
 		this.setState({text: e.target.value});
 	},
@@ -273,8 +280,10 @@ var ChatPanel = React.createClass({
 		e.preventDefault();
 		var curdate = new Date(),
 			getTime = curdate.getTime(),
-			chat_items = this.state.items.concat([{itemText:this.state.text, itemId:getTime}]),
+			react_obj = this,
+			chat_items = this.state.items.concat([{itemText:this.state.text, itemId:getTime, commandResult:''}]),
 			chat = this.state.text,
+			auth_key = this.props.authKey,
 			cleared_chat = '';
 		this.setState({items: chat_items, text: cleared_chat});
 
@@ -283,17 +292,20 @@ var ChatPanel = React.createClass({
 			url:"http://localhost:3000/sendchat",
 			data:{
 				chat:chat,
-				itemId:getTime
+				itemId:getTime,
+				auth_key:auth_key
 			},
 			dataType:"json",
 			success:function(response) {
 				/* if it's a command chat, then it will do something to the chat box */
 				if (response.is_command) {
+					console.log(chat_items[chat_items.length-1]);
 					if (response.command == '#screenshoot') {
-						$("#" + response.itemId).html('<em>system is currently capturing the web page</em>');
+						chat_items[chat_items.length-1].commandResult = <em>system is currently capturing the web page</em>;
 					} else if (response.command = '#youtube') {
-						$("#" + response.itemId).html('<em>system is currently preparing the video</em>');
+						chat_items[chat_items.length-1].commandResult = <em>system is currently preparing the video</em>;
 					}
+					react_obj.setState({items: chat_items});
 				}
 
 				var payload = {
@@ -328,6 +340,11 @@ var ChatPanel = React.createClass({
 				</div>
 				<div className="col-md-9" id="chat-panel">
 					<div className="row">
+						<div className="col-md-12">
+						Hello, {this.props.username} | <a href='#' onClick={this.handleLogout}>Logout</a>
+						</div>
+					</div>
+					<div className="row">
 						<div className="col-md-12 chat-box">
 							<ChatBox items={this.state.items} />
 						</div>
@@ -357,7 +374,7 @@ if (app_auth_key == '' || app_auth_key == undefined) {
 		dataType:"json",
 		success:function(response) {
 			if (response.status == 'success') {
-				React.renderComponent(<ChatPanel />, $main_panel);
+				React.renderComponent(<ChatPanel authKey={app_auth_key} username={response.username} />, $main_panel);
 			} else {
 				React.renderComponent(<LoginBox />, $main_panel);
 			}

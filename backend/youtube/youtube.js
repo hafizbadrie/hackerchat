@@ -10,9 +10,9 @@ sjs_client.on('connection', function() {
 
 mq_con.on('ready', function() {
 	mq_con.queue('youtube-queue', function(q) {
-		q.bind('#');
+		q.bind('youtube-queue');
 
-		q.subscribe(function(message) {
+		q.subscribe({ack:false}, function(message) {
 			var youtube_url = url.parse(message.url, true),
 				video_id 	= '',
 				sock_msg 	= {};
