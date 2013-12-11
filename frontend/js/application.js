@@ -272,6 +272,22 @@ var ChatPanel = React.createClass({
 	handleLogout: function(e) {
 		e.preventDefault();
 		
+		var auth_key  = this.props.authKey,
+			react_obj = this;
+
+		$.ajax({
+			type:"POST",
+			url:"http://localhost:3000/logout",
+			data:{auth_key:auth_key},
+			dataType:"json",
+			success:function(response) {
+				if (response.status == "success") {
+					setCookie('auth_key', null);
+					React.unmountComponentAtNode($main_panel);
+					React.renderComponent(<LoginBox />, $main_panel);
+				}
+			}
+		});
 	},
 	onChange: function(e) {
 		this.setState({text: e.target.value});

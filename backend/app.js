@@ -93,7 +93,9 @@ app.post('/login', function(req, res, next) {
 });
 
 app.post('/logout', function(req, res, next) {
+	var auth_key = req.body.auth_key;
 
+	auth.logout(redis, auth_key, res);
 });
 /* User Login & Registration : END */
 
