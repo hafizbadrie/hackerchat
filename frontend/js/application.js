@@ -28,9 +28,109 @@ function setCookie(c_name, value, exdays) {
 	document.cookie = c_name + "=" + c_value;
 }
 
-var sockjs = new SockJS('http://localhost:3000/sock'),
+var sockjs,
 	$main_panel = document.getElementById('main-panel'),
-	app_auth_key;
+	app_auth_key,
+	online_users = [],
+	current_user;
+
+sockjs = new SockJS('http://localhost:3000/sock');
+sockjs.onopen = function(e) {
+	/* check session */
+	app_auth_key = getCookie('auth_key');
+	if (app_auth_key == '' || app_auth_key == undefined) {
+		React.renderComponent(<LoginBox />, $main_panel);
+	} else {
+		var payload = {
+			type: 'auth_check',
+			auth_key: app_auth_key
+		};
+
+		sockjs.send(JSON.stringify(payload));
+	}
+}
+
+sockjs.onmessage = function (e) {
+	var obj  = JSON.parse(e.data)
+		node = $("#" + obj.itemId);
+
+	if (obj.type == 'login_fail') {
+		console.log('[LOGIN FAIL]');
+
+	} else if (obj.type == 'login_success') {
+		setCookie('auth_key', obj.auth_key);
+		online_users = obj.online_users;
+		current_user = obj.username;
+		React.unmountComponentAtNode($main_panel);
+		React.renderComponent(<ChatPanel username={obj.username} onlineUsers={online_users} authKey={obj.auth_key} />, $main_panel);
+
+		console.log('[SELF]: ' + online_users);
+
+	} else if (obj.type == 'auth_check_fail') {
+		React.unmountComponentAtNode($main_panel);
+		React.renderComponent(<LoginBox />, $main_panel);
+
+		console.log('[AUTH FAIL]');
+
+	} else if (obj.type == 'auth_check_success') { 
+		online_users = obj.online_users;
+		current_user = obj.username;
+		React.unmountComponentAtNode($main_panel);
+		React.renderComponent(<ChatPanel username={obj.username} onlineUsers={online_users} authKey={obj.auth_key} />, $main_panel);
+
+		console.log('[AUTH SUCCESS]: ' + current_user);
+	} else if (obj.type == 'user_exit') {
+		var exit_username_idx = online_users.indexOf(obj.username);
+		current_user = null;
+		online_users = [];
+		app_auth_key = null;
+		$(".room-" + obj.username).parent().remove();
+
+		console.log('[USER LOGOUT]: ' + obj.username);
+
+	} else if (obj.type == 'new_user') {
+		var new_username = obj.username;
+		online_users.push(new_username);
+		$(".online-users").append('<li><a href="#" class="room-' + new_username + '">' + new_username + '</a></li>');
+
+		console.log('[OTHER]: ' + online_users);
+
+	} else if (obj.type == 'force_exit') {
+		current_user = null;
+		online_users = [];
+		app_auth_key = null;
+
+		setCookie('auth_key', null);
+		React.unmountComponentAtNode($main_panel);
+		React.renderComponent(<LoginBox />, $main_panel);
+
+		console.log('[FORCE EXIT]');
+
+	} else if (obj.type == 'screenshoot') {
+		if (obj.status == 'success') {
+			node.html('<img src="' + obj.filepath + '" width="700" />');
+		} else {
+			node.html('<em>' + obj.message + '</em>');
+		}
+
+	} else if (obj.type == 'youtube') {
+		if (obj.status == 'success') {
+			node.html('<iframe width="420" height="315" src="//www.youtube.com/embed/' + obj.video_id + '" frameborder="0" allowfullscreen></iframe>');
+		} else {
+			node.html('<em>' + obj.message + '</em>');
+		}
+
+	} else if (obj.type == 'chat') {
+		if (obj.server_res.is_command) {
+			if (obj.server_res.command == '#screenshoot') {
+				$("#chats").append('<li>' + obj.chat + ' <div id="' + obj.server_res.itemId + '"><em>system is currently capturing the web page</em></div></li>');
+			}
+		} else {
+			$("#chats").append('<li>' + obj.chat + '</li>');
+		}
+
+	}
+};
 
 var RegisterBox = React.createClass({
 	getInitialState: function() {
@@ -127,33 +227,33 @@ var RegisterBox = React.createClass({
 	},
 	render: function() {
 		return(
-			<div>
+			<div className="container">
 				<div className="row">
-					<div className="col-md-12">
-						<form method="post" className="form-horizontal" role="form" action="http://localhost:3000/register">
-							<h3>Register</h3>
-							<br/>
+					<div className="register-box">
+						<form method="post" role="form" action="http://localhost:3000/register">
 							<div className={this.state.invalidAlert}>Invalid data, please fill in valid data</div>
 							<div className={this.state.usernameClass}>
-								<label for="username" className="col-sm-2">Username</label>
-								<div className="col-sm-3">
+								<label for="username" className="col-sm-12">Username</label>
+								<div className="col-sm-12">
 									<input onChange={this.onUsernameChange} type="text" className="form-control" id="username" name="username" placeholder="Enter username ..."/>
 								</div>
 							</div>
 							<div className={this.state.passwordClass}>
-								<label for="password" className="col-sm-2">Password</label>
-								<div className="col-sm-3">
+								<label for="password" className="col-sm-12">Password</label>
+								<div className="col-sm-12">
 									<input onChange={this.onPasswordChange} type="password" className="form-control" id="password" name="password" placeholder="Enter password ..."/>
 								</div>
 							</div>
 							<div className={this.state.confirmPasswordClass}>
-								<label for="confirm-password" className="col-sm-2">Confirm Password</label>
-								<div className="col-sm-3">
+								<label for="confirm-password" className="col-sm-12">Confirm Password</label>
+								<div className="col-sm-12">
 									<input onChange={this.onConfirmPasswordChange} value={this.state.confirmPassword} type="password" className="form-control" id="confirm-password" placeholder="Confirm your password ..."/>
 								</div>
 							</div>
-							<button type="submit" className="btn btn-primary" id="register-btn" onClick={this.onSubmit}>Register</button>
-							or <a href='#' onClick={this.showLogin}>Login</a>
+							<div className="form-action">
+								<button type="submit" className="btn btn-primary" id="register-btn" onClick={this.onSubmit}>Register</button>
+								or <a href='#' onClick={this.showLogin}>Login</a>
+							</div>
 						</form>
 					</div>
 				</div>
@@ -182,6 +282,7 @@ var LoginBox = React.createClass({
 	},
 	onSubmit: function(e) {
 		e.preventDefault();
+		console.log('LOGIN SUBMIT');
 		var react_obj = this,
 			$username = document.getElementById('username'),
 			$password = document.getElementById('password'),
@@ -190,33 +291,20 @@ var LoginBox = React.createClass({
 		$username.disabled = true;
 		$password.disabled = true;
 		$login.disabled = true;
-		$.ajax({
-			type:"POST",
-			url:"http://localhost:3000/login",
-			data:{
-				username:this.state.username,
-				password:this.state.password
-			},
-			dataType:"json",
-			success:function(response) {
-				if (response.status == "success") {
-					react_obj.state.username = '';
-					react_obj.state.password = '';
-					$username.value = '';
-					$password.value = '';
 
-					setCookie('auth_key', response.auth_key);
-					React.unmountComponentAtNode($main_panel);
-					React.renderComponent(<ChatPanel username={response.username} authKey={response.auth_key} />, $main_panel);
-				} else {
-					console.log('Not logged in');
-				}
-				
-				$username.disabled = false;
-				$password.disabled = false;
-				$login.disabled = false;
-			}
-		});
+		var payload = {
+			type:'login',
+			username:this.state.username,
+			password:this.state.password
+		};
+		sockjs.send(JSON.stringify(payload));
+
+		this.setState({username: '', password: ''});
+		$username.value = '';
+		$password.value = '';
+		$username.disabled = false;
+		$password.disabled = false;
+		$login.disabled = false;
 	},
 	showRegister:function(e) {
 		React.unmountComponentAtNode($main_panel);
@@ -224,32 +312,42 @@ var LoginBox = React.createClass({
 	},
 	render: function() {
 		return (
-			<div>
+			<div className="container">
 				<div className="row">
-					<div className="col-md-12">
-						<form method="post" className="form-horizontal" role="form" action="http://localhost:3000/login">
-							<h3>Login</h3>
-							<br/>
+					<div className="login-box">
+						<form method="post" role="form" action="http://localhost:3000/login">
 							<div className={this.props.showMessage}>{this.props.registerMessage}</div>
 							<div className="form-group">
-								<label for="username" className="col-sm-2">Username</label>
-								<div className="col-sm-3">
+								<label for="username" className="col-sm-12">Username</label>
+								<div className="col-sm-12">
 									<input onChange={this.onUsernameChange} type="text" className="form-control" id="username" name="username" placeholder="Enter username ..."/>
 								</div>
 							</div>
 							<div className="form-group">
-								<label for="password" className="col-sm-2">Password</label>
-								<div className="col-sm-3">
+								<label for="password" className="col-sm-12">Password</label>
+								<div className="col-sm-12">
 									<input onChange={this.onPasswordChange} type="password" className="form-control" id="password" name="password" placeholder="Enter password ..."/>
 								</div>
 							</div>
-							<button type="submit" className="btn btn-primary" onClick={this.onSubmit} id="login-btn">Login</button>
-							or <a href='#' onClick={this.showRegister}>Register</a>
+							<div className="form-action">
+								<button type="submit" className="btn btn-primary" onClick={this.onSubmit} id="login-btn">Login</button>
+								or <a href='#' onClick={this.showRegister}>Register</a>
+							</div>
 						</form>
 					</div>
 				</div>
 			</div>
 		);
+	}
+});
+
+var UsersBox = React.createClass({
+	render: function() {
+		var online_user = function(user) {
+			var className = "room-" + user;
+			return <li><a href="#" className={className}>{user}</a></li>
+		}
+		return <ul className="online-users">{this.props.users.map(online_user)}</ul>;
 	}
 });
 
@@ -275,25 +373,22 @@ var ChatPanel = React.createClass({
 		var auth_key  = this.props.authKey,
 			react_obj = this;
 
-		$.ajax({
-			type:"POST",
-			url:"http://localhost:3000/logout",
-			data:{auth_key:auth_key},
-			dataType:"json",
-			success:function(response) {
-				if (response.status == "success") {
-					setCookie('auth_key', null);
-					React.unmountComponentAtNode($main_panel);
-					React.renderComponent(<LoginBox />, $main_panel);
-				}
-			}
-		});
+		var payload = {
+			type:'logout',
+			username:current_user,
+			auth_key:app_auth_key
+		}
+		sockjs.send(JSON.stringify(payload));
+		setCookie('auth_key', null);
+		React.unmountComponentAtNode($main_panel);
+		React.renderComponent(<LoginBox />, $main_panel);
 	},
 	onChange: function(e) {
 		this.setState({text: e.target.value});
 	},
 	onClick: function(e) {
-		e.preventDefault();
+		e.preventDefault();;
+
 		var curdate = new Date(),
 			getTime = curdate.getTime(),
 			react_obj = this,
@@ -335,37 +430,22 @@ var ChatPanel = React.createClass({
 	},
 	render: function() {
 		return (
-			<div className="row">
-				<div className="col-md-3 command-chat">
-					<h2>Command Chat</h2>
-					<ul>
-						<li><strong>#screenshoot</strong>: use this command chat to capture a web page</li>
-						<li><strong>#youtube</strong>: use this command chat to share a youtube video</li>
-						<li><strong>#getimage</strong>: use this command chat to share an image</li>
-						<li><strong>#alexa</strong>: use this command chat to retrieve alexa data of a site</li>
-					</ul>
+			<div className="row no-margin">
+				<div className="col-md-3 left-panel">
+					<div className="current-user">
+						<p>Hello, <span className="font-bold">{this.props.username}</span> | <a href='#' onClick={this.handleLogout}>Logout</a></p>
+					</div>
 
-					<h2>Todo</h2>
-					<ul>
-						<li>Persist chat in redis</li>
-						<li>Scrolling interaction</li>
-						<li>Getimage module</li>
-						<li>Skin polish</li>
-						<li>Learn reactjs more to remove unnecessary jQuery code</li>
-					</ul>
+					<h2 className="online-user-header"><span className="glyphicon glyphicon-user"></span> Online Users</h2>
+					<UsersBox users={this.props.onlineUsers} />
 				</div>
 				<div className="col-md-9" id="chat-panel">
-					<div className="row">
-						<div className="col-md-12">
-						Hello, {this.props.username} | <a href='#' onClick={this.handleLogout}>Logout</a>
-						</div>
-					</div>
-					<div className="row">
+					<div className="row no-margin">
 						<div className="col-md-12 chat-box">
 							<ChatBox items={this.state.items} />
 						</div>
 					</div>
-					<div className="row chat-actions">
+					<div className="row chat-actions no-margin">
 						<div className="col-md-11">
 							<textarea onChange={this.onChange} id="chat-input" value={this.state.text}></textarea>
 						</div>
@@ -379,47 +459,15 @@ var ChatPanel = React.createClass({
 	}
 });
 
-/* check session */
-app_auth_key = getCookie('auth_key');
-if (app_auth_key == '' || app_auth_key == undefined) {
-	React.renderComponent(<LoginBox />, $main_panel);
-} else {
-	$.ajax({
-		type:"GET",
-		url:"http://localhost:3000/session_check?auth_key=" + app_auth_key,
-		dataType:"json",
-		success:function(response) {
-			if (response.status == 'success') {
-				React.renderComponent(<ChatPanel authKey={app_auth_key} username={response.username} />, $main_panel);
-			} else {
-				React.renderComponent(<LoginBox />, $main_panel);
-			}
-		}
-	})
-}
-
-sockjs.onmessage = function(e) {
-	var obj  = JSON.parse(e.data)
-		node = $("#" + obj.itemId);
-	if (obj.type == 'screenshoot') {
-		if (obj.status == 'success') {
-			node.html('<img src="' + obj.filepath + '" width="700" />');
-		} else {
-			node.html('<em>' + obj.message + '</em>');
-		}
-	} else if (obj.type == 'youtube') {
-		if (obj.status == 'success') {
-			node.html('<iframe width="420" height="315" src="//www.youtube.com/embed/' + obj.video_id + '" frameborder="0" allowfullscreen></iframe>');
-		} else {
-			node.html('<em>' + obj.message + '</em>');
-		}
-	} else if (obj.type == 'chat') {
-		if (obj.server_res.is_command) {
-			if (obj.server_res.command == '#screenshoot') {
-				$("#chats").append('<li>' + obj.chat + ' <div id="' + obj.server_res.itemId + '"><em>system is currently capturing the web page</em></div></li>');
-			}
-		} else {
-			$("#chats").append('<li>' + obj.chat + '</li>');
-		}
+window.onbeforeunload = function(e) {
+	if (app_auth_key !== undefined) {
+		var user_idx = online_users.indexOf(current_user);
+		online_users.splice(user_idx, 1);
+		var payload = {
+			type: 'browser_exit',
+			auth_key: app_auth_key,
+			username: current_user
+		};
+		sockjs.send(JSON.stringify(payload));
 	}
 }

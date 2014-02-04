@@ -32,15 +32,22 @@ module.exports = {
 				var auth_key = new Date();
 				auth_key = crypto.createHash('md5').update(auth_key.toString()).digest('hex');
 				redis.set('session:' + auth_key, username);
-
-				res.json({status:"success", username:username, auth_key:auth_key});
+				redis.sadd('room', username);
+				redis.smembers('room', function(err, value) {
+					res.json({status:"success", username:username, online_users:value, auth_key:auth_key});
+				})
 			} else {
 				res.json({status:"fail", message:"Incorrect username or password"});
 			}
 		});
 	},
 	logout: function(redis, auth_key, res) {
-		redis.del('session:' + auth_key);
-		res.json({status:"success"});
+		redis.get('session:' + auth_key, function(err, username) {
+			redis.srem('room', username);
+			redis.del('session:' + auth_key);
+			redis.smembers('room', function(err, value) {
+				res.json({status:"success", online_users:value});
+			});
+		})
 	}
 }

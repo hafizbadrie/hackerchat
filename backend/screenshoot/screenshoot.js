@@ -38,7 +38,7 @@ mq_con.on('ready', function() {
 							var sock_message = {
 								type:'screenshoot',
 								status:'success',
-								filepath:'http://hackerchat.local/images/screenshoots/' + filename,
+								filepath:'http://hackerchat.hbl/images/screenshoots/' + filename,
 								itemId: message.itemId
 							};
 
