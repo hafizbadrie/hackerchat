@@ -84,12 +84,23 @@ sock.on('connection', function(conn) {
 						var username = value;
 						redis.sadd('conn:' + username, conn.id);
 						redis.smembers('room', function(err, value) {
-							var return_msg = {
-								type:'auth_check_success',
-								username:username,
-								online_users:value
-							}
-							conn.write(JSON.stringify(return_msg));
+							var date 	= new Date(),
+								today 	= date.getFullYear().toString() + date.getMonth().toString() + date.getDate().toString(),
+								rkey 	= 'chat_' + today;
+
+							redis.llen(rkey, function(err, chat_length) {
+								redis.lrange(rkey, 0, chat_length-1, function(err, chats) {
+									var return_msg = {
+										type:'auth_check_success',
+										username:username,
+										online_users:value,
+										auth_key:auth_key,
+										chats:chats
+									}
+									conn.write(JSON.stringify(return_msg));
+								});
+							});
+
 						});
 					} else {
 						var return_msg = {
@@ -113,8 +124,17 @@ sock.on('connection', function(conn) {
 						redis.sadd('room', username);
 
 						redis.smembers('room', function(err, online_users) {
-							var return_msg = {type:'login_success', username:username, auth_key:auth_key, online_users:online_users};
-							conn.write(JSON.stringify(return_msg));
+							var date 	= new Date(),
+								today 	= date.getFullYear().toString() + date.getMonth().toString() + date.getDate().toString(),
+								rkey 	= 'chat_' + today;
+
+							redis.llen(rkey, function(err, chat_length) {
+								redis.lrange(rkey, 0, chat_length-1, function(err, chats) {
+									var return_msg = {type:'login_success', username:username, auth_key:auth_key, online_users:online_users, chats:chats};
+									conn.write(JSON.stringify(return_msg));
+								});
+							});
+							
 						});
 						
 						redis.smembers('conn:' + username, function(err, conns) {
@@ -200,13 +220,50 @@ sock.on('connection', function(conn) {
 				}
 				break;
 			case 'chat':
-				var keys = Object.keys(pool['room']);
-				toclient_message = message;
-				for (var i=0; i<keys.length; i++) {
-					if (keys[i] !== conn.id) {
-						pool['room'][keys[i]].write(JSON.stringify(toclient_message));
+				var keys 				= Object.keys(pool['room']);
+					toclient_message	= message,
+					date				= new Date(),
+					today				= date.getFullYear().toString() + date.getMonth().toString() + date.getDate().toString(),
+					rediskey 			= 'chat_' + today,
+					chatpersist			= {
+						chat:message.chat,
+						username:message.username,
+						created_at:date
+					};
+
+				/* persist chat */
+				console.log('[DEBUG] rediskey: ' + rediskey);
+				redis.rpush(rediskey, JSON.stringify(chatpersist));
+
+				redis.smembers('conn:' + message.username, function(err, conns) {
+					var return_msg 		= {chat:message.chat, username:message.username, server_res:message.server_res, type:message.type, chatType: 'owner'},
+						return_msg_user	= {chat:message.chat, username:message.username, server_res:message.server_res, type:message.type, chatType: 'user'},
+						keys 			= Object.keys(pool['room']);
+
+					for (var i=0; i<conns.length; i++) {
+						if (conns[i] !== conn.id) {
+							if (pool['room'][conns[i]] !== undefined) {
+								pool['room'][conns[i]].write(JSON.stringify(return_msg));
+							}
+						}
 					}
-				}
+
+					for (var i=0; i<keys.length; i++) {
+						var found 	= false,
+							idx 	= 0;
+
+						while(!found && idx < conns.length) {
+							if (keys[i] === conns[idx]) {
+								found = true;
+							}
+							idx++;
+						}
+
+						if (!found) {
+							pool['room'][keys[i]].write(JSON.stringify(return_msg_user));
+						}
+					}
+				});
 				break;
 			case 'close':
 				// var idx = pool['room'].indexOf(conn);
@@ -239,7 +296,6 @@ app.post('/sendchat', function(req, res, next) {
 		var command 	= chats[0],
 			is_command 	= false;
 
-		console.log(chats);
 		switch(command) {
 			case '#screenshoot':
 				is_command 	= true;

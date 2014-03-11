@@ -37,8 +37,9 @@ var sockjs,
 sockjs = new SockJS('http://localhost:3000/sock');
 sockjs.onopen = function(e) {
 	/* check session */
+	console.log('asdfasdf');
 	app_auth_key = getCookie('auth_key');
-	if (app_auth_key == '' || app_auth_key == undefined) {
+	if (app_auth_key == undefined || app_auth_key == '') {
 		React.renderComponent(<LoginBox />, $main_panel);
 	} else {
 		var payload = {
@@ -73,10 +74,22 @@ sockjs.onmessage = function (e) {
 		console.log('[AUTH FAIL]');
 
 	} else if (obj.type == 'auth_check_success') { 
+		var chats = '';
 		online_users = obj.online_users;
 		current_user = obj.username;
 		React.unmountComponentAtNode($main_panel);
 		React.renderComponent(<ChatPanel username={obj.username} onlineUsers={online_users} authKey={obj.auth_key} />, $main_panel);
+
+		$.each(obj.chats, function(index, obj_chat) {
+			var chat = JSON.parse(obj_chat);
+
+			if (chat.username == current_user) {
+				chats += '<li class="owner">' + chat.chat + ' <div class="username">' + chat.username + '</div></li>'
+			} else {
+				chats += '<li class="user">' + chat.chat + ' <div class="username">' + chat.username + '</div></li>'
+			}
+		});
+		$("#chats").html(chats);
 
 		console.log('[AUTH SUCCESS]: ' + current_user);
 	} else if (obj.type == 'user_exit') {
@@ -126,7 +139,7 @@ sockjs.onmessage = function (e) {
 				$("#chats").append('<li>' + obj.chat + ' <div id="' + obj.server_res.itemId + '"><em>system is currently capturing the web page</em></div></li>');
 			}
 		} else {
-			$("#chats").append('<li>' + obj.chat + '</li>');
+			$("#chats").append('<li class="' + obj.chatType + '">' + obj.chat + ' <div class="username">' + obj.username + '</div></li>');
 		}
 
 	}
@@ -354,9 +367,10 @@ var UsersBox = React.createClass({
 var ChatBox = React.createClass({
 	render: function() {
 		var chat_line = function(sent_chat) {
-			return <li>{sent_chat.itemText} <div id={sent_chat.itemId}>{sent_chat.commandResult}</div></li>;
+			return <li className={sent_chat.itemType}>{sent_chat.itemText} <div id={sent_chat.itemId}>{sent_chat.commandResult}</div> <div className='username'>{sent_chat.itemUsername}</div></li>;
 		}
-		return <ul id="chats">{this.props.items.map(chat_line)}</ul>;
+		//return <ul id="chats">{this.props.items.map(chat_line)}</ul>;
+		return <ul id="chats"></ul>;
 	}
 });
 
@@ -365,7 +379,7 @@ var ChatPanel = React.createClass({
 		return {items:[], text:''};
 	},
 	getDefaultProps: function() {
-		return {username:'', authKey:''};
+		return {username:'', authKey:'', onlineUsers:[]};
 	},
 	handleLogout: function(e) {
 		e.preventDefault();
@@ -386,47 +400,59 @@ var ChatPanel = React.createClass({
 	onChange: function(e) {
 		this.setState({text: e.target.value});
 	},
+	onKeyPress: function(e) {
+		if (e.keyCode === 13) {
+			this.onClick(e);
+		}
+	},
 	onClick: function(e) {
 		e.preventDefault();;
 
-		var curdate = new Date(),
-			getTime = curdate.getTime(),
-			react_obj = this,
-			chat_items = this.state.items.concat([{itemText:this.state.text, itemId:getTime, commandResult:''}]),
-			chat = this.state.text,
-			auth_key = this.props.authKey,
-			cleared_chat = '';
-		this.setState({items: chat_items, text: cleared_chat});
+		var curdate 		= new Date(),
+			getTime 		= curdate.getTime(),
+			react_obj 		= this,
+			current_user	= this.props.username
+			chat_items 		= this.state.items.concat([{itemUsername:this.props.username, itemType:'owner', itemText:this.state.text, itemId:getTime, commandResult:''}]),
+			chat 			= this.state.text,
+			auth_key 		= this.props.authKey,
+			cleared_chat 	= '';
 
-		$.ajax({
-			type:"POST",
-			url:"http://localhost:3000/sendchat",
-			data:{
-				chat:chat,
-				itemId:getTime,
-				auth_key:auth_key
-			},
-			dataType:"json",
-			success:function(response) {
-				/* if it's a command chat, then it will do something to the chat box */
-				if (response.is_command) {
-					console.log(chat_items[chat_items.length-1]);
-					if (response.command == '#screenshoot') {
-						chat_items[chat_items.length-1].commandResult = <em>system is currently capturing the web page</em>;
-					} else if (response.command = '#youtube') {
-						chat_items[chat_items.length-1].commandResult = <em>system is currently preparing the video</em>;
+		if (chat !== '') {
+			this.setState({items: chat_items, text: cleared_chat});
+			$("#chats").append('<li class="owner">' + chat + ' <div class="username">' + current_user + '</div></li>');
+
+			$.ajax({
+				type:"POST",
+				url:"http://localhost:3000/sendchat",
+				data:{
+					chat:chat,
+					username:current_user,
+					itemId:getTime,
+					auth_key:auth_key
+				},
+				dataType:"json",
+				success:function(response) {
+					/* if it's a command chat, then it will do something to the chat box */
+					if (response.is_command) {
+						console.log(chat_items[chat_items.length-1]);
+						if (response.command == '#screenshoot') {
+							chat_items[chat_items.length-1].commandResult = <em>system is currently capturing the web page</em>;
+						} else if (response.command = '#youtube') {
+							chat_items[chat_items.length-1].commandResult = <em>system is currently preparing the video</em>;
+						}
+						react_obj.setState({items: chat_items});
 					}
-					react_obj.setState({items: chat_items});
-				}
 
-				var payload = {
-					type:'chat',
-					server_res: response,
-					chat:chat
-				};
-				sockjs.send(JSON.stringify(payload));
-			}
-		});
+					var payload = {
+						type:'chat',
+						server_res: response,
+						chat:chat,
+						username:current_user
+					};
+					sockjs.send(JSON.stringify(payload));
+				}
+			});
+		}
 	},
 	render: function() {
 		return (
@@ -447,7 +473,7 @@ var ChatPanel = React.createClass({
 					</div>
 					<div className="row chat-actions no-margin">
 						<div className="col-md-11">
-							<textarea onChange={this.onChange} id="chat-input" value={this.state.text}></textarea>
+							<textarea onChange={this.onChange} id="chat-input" value={this.state.text} onKeyPress={this.onKeyPress}></textarea>
 						</div>
 						<div className="col-md-1">
 							<a href="#" id="send-chat" className='btn btn-primary' onClick={this.onClick}>Send</a>
